@@ -23,7 +23,7 @@ function generateImageCode() {
     // 形成图片验证码的后端地址， 设置到页面中，让浏览请求验证码图片
     // 1. 生成图片验证码编号
     imageCodeId = generateUUID();
-    // 是指图片url
+    // 2. 设置图片url
     var url = "/api/v1.0/image_codes/" + imageCodeId;
     $(".image-code img").attr("src", url);
 }
@@ -36,7 +36,7 @@ function sendSMSCode() {
         $("#mobile-err").show();
         $(".phonecode-a").attr("onclick", "sendSMSCode();");
         return;
-    } 
+    }
     var imageCode = $("#imagecode").val();
     if (!imageCode) {
         $("#image-code-err span").html("请填写验证码！");
@@ -44,31 +44,32 @@ function sendSMSCode() {
         $(".phonecode-a").attr("onclick", "sendSMSCode();");
         return;
     }
-    $.get("/api/smscode", {mobile:mobile, code:imageCode, codeId:imageCodeId}, 
+    $.get("/api/v1.0/sms_codes/" + mobile, {image_code:imageCode, image_code_key:imageCodeId},
         function(data){
             if (0 != data.errno) {
-                $("#image-code-err span").html(data.errmsg); 
+                $("#image-code-err span").html(data.errmsg);
                 $("#image-code-err").show();
                 if (2 == data.errno || 3 == data.errno) {
                     generateImageCode();
                 }
                 $(".phonecode-a").attr("onclick", "sendSMSCode();");
-            }   
+            }
             else {
                 var $time = $(".phonecode-a");
                 var duration = 60;
                 var intervalid = setInterval(function(){
-                    $time.html(duration + "秒"); 
+                    $time.html(duration + "秒");
                     if(duration === 1){
                         clearInterval(intervalid);
-                        $time.html('获取验证码'); 
+                        $time.html('获取验证码');
                         $(".phonecode-a").attr("onclick", "sendSMSCode();");
                     }
                     duration = duration - 1;
-                }, 1000, 60); 
+                }, 1000, 60);
             }
-    }, 'json'); 
+    }, 'json');
 }
+
 
 $(document).ready(function() {
     generateImageCode();
@@ -88,17 +89,20 @@ $(document).ready(function() {
     $("#password2").focus(function(){
         $("#password2-err").hide();
     });
+    // 为表单的提交补充自定义的函数行为，参数e为提交事件
     $(".form-register").submit(function(e){
+        //阻止默认的提交表单行为,走下面自定义的行为
         e.preventDefault();
-        mobile = $("#mobile").val();
-        phoneCode = $("#phonecode").val();
-        passwd = $("#password").val();
-        passwd2 = $("#password2").val();
+        //判断字段是否填写
+        var mobile = $("#mobile").val();
+        var phoneCode = $("#phonecode").val();
+        var passwd = $("#password").val();
+        var passwd2 = $("#password2").val();
         if (!mobile) {
             $("#mobile-err span").html("请填写正确的手机号！");
             $("#mobile-err").show();
             return;
-        } 
+        }
         if (!phoneCode) {
             $("#phone-code-err span").html("请填写短信验证码！");
             $("#phone-code-err").show();
@@ -114,5 +118,32 @@ $(document).ready(function() {
             $("#password2-err").show();
             return;
         }
+        //发送ajax请求
+        //js对象
+        var post_data = {
+            mobile: mobile,
+            phoneCode: phoneCode,
+            password: passwd,
+            password2: passwd2
+        };
+        //转换为json格式
+        var post_json = JSON.stringify(post_data);
+        $.ajax({
+            url: "api/v1.0/users",
+            type: "post",
+            contentType: "application/json",
+            data: post_json,
+            dataType: "json",
+            headers: {'X-CSRFToken': getCookie('csrf_token')},
+            success: function (resp) {
+                if(resp.errno != '0'){
+                    alert(resp.errmsg);
+                }
+                else{
+                    //注册成功，跳转到首页
+                    location.href='/index.html';
+                }
+            }
+        })
     });
 })

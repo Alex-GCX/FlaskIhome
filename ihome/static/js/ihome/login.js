@@ -11,6 +11,7 @@ $(document).ready(function() {
         $("#password-err").hide();
     });
     $(".form-login").submit(function(e){
+        //阻止默认的表单提交行为
         e.preventDefault();
         mobile = $("#mobile").val();
         passwd = $("#password").val();
@@ -24,5 +25,25 @@ $(document).ready(function() {
             $("#password-err").show();
             return;
         }
+        //发送ajax请求
+        //js对象数据转化为json格式
+        var postData = JSON.stringify({phone:mobile, password:passwd});
+        $.ajax({
+            url: 'api/v1.0/sessions',
+            type: 'post',
+            data: postData,
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': getCookie('csrf_token')},
+            dataType: 'json',
+            success: function (resp) {
+                if(resp.errno == '0'){
+                    //登录成功，跳转到首页
+                    location.href='/index.html';
+                }else{
+                    //登录失败
+                    alert(resp.errmsg);
+                }
+            }
+        })
     });
 })

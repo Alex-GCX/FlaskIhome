@@ -4,4 +4,4 @@ from flask import Blueprint
 api = Blueprint('api_1_0', __name__, url_prefix='/api/v1.0')
 
 # 导入蓝图的视图
-from . import users
+from . import users, verify_codes

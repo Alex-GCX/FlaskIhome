@@ -1,10 +1,34 @@
+function getCookies(name) {
+    var ret = document.cookie.match('\\b' + name + '=([^;]*)\\b');
+    return ret ? ret[1] : undefined;
+}
+
 function logout() {
-    $.get("/api/logout", function(data){
-        if (0 == data.errno) {
-            location.href = "/";
+    $.ajax({
+        url: 'api/v1.0/sessions',
+        type: 'delete',
+        dataType: 'json',
+        headers: {
+            'X-CSRFToken': getCookies('csrf_token')
+        },
+        success: function (resp) {
+            if (resp.errno == '0'){
+                location.href='/'
+            }else{
+                alert(resp.errmsg)
+            }
         }
     })
 }
 
 $(document).ready(function(){
+    //调用获取头像接口
+    $.get('/api/v1.0/user/info', function (resp) {
+        if (resp.errno == '0'){
+            //获取成功，设置image的url
+            $('#user-avatar').attr('src', resp.data.url);
+            $('#user-name').html(resp.data.name);
+            $('#user-mobile').html(resp.data.mobile);
+        }
+    })
 })

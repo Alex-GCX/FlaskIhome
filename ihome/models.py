@@ -8,8 +8,8 @@ class BasicModel(db.Model):
     __abstract__ = True
 
     id = db.Column(db.Integer, primary_key=True)
-    created_date = db.Column(db.Datetime, nullable=False, default=datetime.now())
-    updated_date = db.Column(db.Datetime, nullable=False, default=datetime.now(), onupdate=datetime.now())
+    created_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    updated_date = db.Column(db.DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
     is_delete = db.Column(db.Boolean, nullable=False, default=False)
 
 
@@ -38,12 +38,20 @@ class Users(BasicModel):
     def check_password_hash(self, password):
         return check_password_hash(self.password_hash, password)
 
+    # 友好展示模型类对象
+    def __repr__(self):
+        return self.name
+
 
 class Areas(BasicModel):
     """城区模型类"""
     __tablename__ = 'ih_areas'
 
     name = db.Column(db.String(32), unique=True, nullable=False)
+
+    # 友好展示模型类对象
+    def __repr__(self):
+        return self.name
 
 
 class Houses(BasicModel):
@@ -69,6 +77,10 @@ class Houses(BasicModel):
     order_count = db.Column(db.Integer, default=0)  # 该房屋的历史订单数
     default_image_url = db.Column(db.String(240))  # 默认显示的图片
 
+    # 友好展示模型类对象
+    def __repr__(self):
+        return self.title
+
 
 class HouseImages(BasicModel):
     """房屋图片表"""
@@ -79,6 +91,7 @@ class HouseImages(BasicModel):
     image_url = db.Column(db.String(240), nullable=False)
 
 
+# 房屋和设置表属于多对多关系, 官方推荐db.table的方式建立多对多关系
 house_facilities = db.Table('ih_house_facilities',
                             db.Column('house_id', db.Integer, db.ForeignKey('ih_houses.id'), nullable=False),
                             db.Column('facility_id', db.Integer, db.ForeignKey('ih_facilities.id'), nullable=False))
@@ -90,19 +103,29 @@ class Facilities(BasicModel):
 
     name = db.Column(db.String(32), nullable=False)
 
+    # 友好展示模型类对象
+    def __repr__(self):
+        return self.name
+
 
 class Orders(BasicModel):
     """订单模型类"""
     __tablename__ = 'ih_orders'
 
-    user_id = db.Column(db.Integer, db.ForeignKey('ih_orders.id'), nullable=False)
+    order_num = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('ih_users.id'), nullable=False)
     user = db.relationship('Users', backref='orders')
     house_id = db.Column(db.Integer, db.ForeignKey('ih_houses.id'), nullable=False)
-    house = db.relationship('House', backref='orders')
+    house = db.relationship('Houses', backref='orders')
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     days = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Integer, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
-    status = db.Column(db.Enum('NEW', 'PAID', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'), default='NEW', index=True)
+    status = db.Column(db.Enum('NEW', 'PAID', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'), default='NEW',
+                       index=True)
+
+    # 友好展示模型类对象
+    def __repr__(self):
+        return self.order_num

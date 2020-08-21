@@ -4,6 +4,8 @@ from flask_session import Session
 from flask_wtf import CSRFProtect
 import redis
 from config import config_map
+import logging
+from logging.handlers import RotatingFileHandler
 
 """
 一. 这个init文件主要向外暴露两方面的内容:
@@ -13,7 +15,6 @@ from config import config_map
 二. flask扩展插件有两种初始化方式, 以flask_sqlalchemy为例:
     1. 创建db对象的同时传入app对象: 
         db.SQLAlechmy(app)
-        即先创建app, 再创建扩展对象
     2. 创建db对象时不传入appd对象, 等到app对象创建出来后再调用db对象的init_app将app绑定
         db.SQLAlchemy()
         ...
@@ -32,7 +33,20 @@ from config import config_map
 db = SQLAlchemy()
 # 初始化redis连接
 redis_connect = None
+# csrf对象
+csrf = CSRFProtect()
 
+# 配置日志信息
+# 设置日志的记录等级
+logging.basicConfig(level=logging.INFO)
+# 创建日志记录器，指明日志保存的路径、每个日志文件的最大大小、保存的日志文件个数上限
+file_log_handler = RotatingFileHandler("logs/log", maxBytes=1024*1024*100, backupCount=10)
+# 创建日志记录的格式                 日志等级    输入日志信息的文件名 行数    日志信息
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(lineno)s - %(message)s')
+# 为刚创建的日志记录器设置日志记录格式
+file_log_handler.setFormatter(formatter)
+# 为全局的日志工具对象（flask app使用的）添加日记录器
+logging.getLogger().addHandler(file_log_handler)
 
 # 创建应用工厂
 def create_app(env):
@@ -56,9 +70,19 @@ def create_app(env):
     # 将session绑定为app中的设置
     Session(app)
     # 启用CSRF模块
-    CSRFProtect(app)
+    # csrf = CSRFProtect(app)
+    csrf.init_app(app)
+
+    # 注册自定义路由转换器
+    from ihome.utils.commons import ReConverter
+    app.url_map.converters['re'] = ReConverter
 
     # 注册蓝图, 蓝图最好是注册前才导入
     from ihome.api_1_0 import api
     app.register_blueprint(api)
+
+    # 注册html蓝图
+    from ihome.web_html import html
+    app.register_blueprint(html)
+
     return app
