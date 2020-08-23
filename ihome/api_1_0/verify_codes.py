@@ -80,7 +80,7 @@ def send_sms_code(phone):
     # 图片验证码正确，则发送短信验证码
     # 获取随机6位验证码
     # sms_code = '%06d' % random.randint(0, 999999)
-    sms_code = f'{random.randint(0,999999):06}'
+    sms_code = f'{random.randint(0, 999999):06}'
     print(f'真实短信验证码：{sms_code}')
     try:
         sdk = SmsSDK(constants.ACCID, constants.ACCTOKEN, constants.APPID)
@@ -88,7 +88,7 @@ def send_sms_code(phone):
         mobile = phone
         # 短信模板为：....您的验证码是{1}，请于{2}分钟内正确输入
         # data参数为元组，第一个值为模板中的{1}，第二个值为模板中的{2}
-        data = (sms_code, constants.SMS_CODE_REDIS_EXPIRES//60)
+        data = (sms_code, constants.SMS_CODE_REDIS_EXPIRES // 60)
         # 发送短信，接受返回值
         sms_resp_json = sdk.sendMessage(tid, mobile, data)
     except Exception as e:
