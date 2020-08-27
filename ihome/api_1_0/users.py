@@ -2,7 +2,7 @@ from flask import request, jsonify, current_app, session, g
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from . import api
-from ihome import models, csrf, redis_connect, db
+from ihome import redis_connect, db
 from ihome.utils.response_codes import RET
 from ihome.utils import constants
 from ihome.models import Users
@@ -212,6 +212,10 @@ def set_user_name():
     except Exception as e:
         current_app.logger.error(e)
         return jsonify(errno=RET.DBERR, errmsg='保存用户名异常')
+
+    # 修改session的值
+    session['name'] = name
+
     return jsonify(errno=RET.OK)
 
 
@@ -240,7 +244,10 @@ def authenticate():
     # 校验数据
     if not all([real_name, real_id_card]):
         return parameter_error()
-    # 获取已认证的用户
+    # 判断该用户是否已经实名认证过
+    if g.user.real_name and g.user.real_id_card:
+        return jsonify(errno=RET.DATAEXIST, errmsg='该用户已实名认证过')
+    # 判断该真实姓名或身份证号是否被认证过
     try:
         users = Users.query.filter(or_(Users.real_name == real_name, Users.real_id_card == real_id_card)).all()
     except Exception as e:

@@ -1,5 +1,4 @@
 from flask import make_response, jsonify, current_app, request
-from ronglian_sms_sdk import SmsSDK
 from ihome.utils.captcha import captcha
 from ihome.utils import constants
 from ihome.utils.response_codes import RET
@@ -7,7 +6,6 @@ from ihome import redis_connect
 from ihome.models import Users
 from . import api
 import random
-import json
 
 
 @api.route('/image_codes/<image_code_key>')
@@ -82,24 +80,27 @@ def send_sms_code(phone):
     # sms_code = '%06d' % random.randint(0, 999999)
     sms_code = f'{random.randint(0, 999999):06}'
     print(f'真实短信验证码：{sms_code}')
-    try:
-        sdk = SmsSDK(constants.ACCID, constants.ACCTOKEN, constants.APPID)
-        tid = '1'
-        mobile = phone
-        # 短信模板为：....您的验证码是{1}，请于{2}分钟内正确输入
-        # data参数为元组，第一个值为模板中的{1}，第二个值为模板中的{2}
-        data = (sms_code, constants.SMS_CODE_REDIS_EXPIRES // 60)
-        # 发送短信，接受返回值
-        sms_resp_json = sdk.sendMessage(tid, mobile, data)
-    except Exception as e:
-        current_app.logger.error(e)
-        return jsonify(errno=RET.THIRDERR, errmsg='发送短信异常')
-    # 处理返回值
-    sms_resp_dict = json.loads(sms_resp_json)
-    sms_status = sms_resp_dict.get('statusCode')
-    if sms_status not in ('000000', '112310'):
-        # 发送失败
-        return jsonify(errno=RET.THIRDERR, errmsg=sms_resp_dict.get('statusMsg'))
+    # try:
+    #     sdk = SmsSDK(constants.ACCID, constants.ACCTOKEN, constants.APPID)
+    #     tid = '1'
+    #     mobile = phone
+    #     # 短信模板为：....您的验证码是{1}，请于{2}分钟内正确输入
+    #     # data参数为元组，第一个值为模板中的{1}，第二个值为模板中的{2}
+    #     data = (sms_code, constants.SMS_CODE_REDIS_EXPIRES // 60)
+    #     # 发送短信，接受返回值
+    #     sms_resp_json = sdk.sendMessage(tid, mobile, data)
+    # except Exception as e:
+    #     current_app.logger.error(e)
+    #     return jsonify(errno=RET.THIRDERR, errmsg='发送短信异常')
+    # # 处理返回值
+    # sms_resp_dict = json.loads(sms_resp_json)
+    # sms_status = sms_resp_dict.get('statusCode')
+    # if sms_status not in ('000000', '112310'):
+    #     # 发送失败
+    #     return jsonify(errno=RET.THIRDERR, errmsg=sms_resp_dict.get('statusMsg'))
+    # 异步发送短信
+    from ihome.celery_tasks.send_sms_code import tasks
+    result = tasks.send_sms_code.delay(sms_code, phone)
 
     # 发送成功
     # redis缓存发送记录，一分钟内同一个手机号不能再发送短信了

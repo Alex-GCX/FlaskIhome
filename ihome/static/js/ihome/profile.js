@@ -1,8 +1,8 @@
 function showSuccessMsg() {
     $('.popup_con').fadeIn('fast', function() {
         setTimeout(function(){
-            $('.popup_con').fadeOut('fast',function(){}); 
-        },1000) 
+            $('.popup_con').fadeOut('fast',function(){});
+        },1000)
     });
 }
 
@@ -12,6 +12,17 @@ function getCookie(name) {
 }
 
 $(document).ready(function () {
+    //获取当前头像
+    $.get('api/v1.0/user/info', function (resp) {
+        if (resp.errno == '0'){
+            //获取成功
+            $('#user-avatar').attr("src", resp.data.url);
+            $('#user-name').attr("value", resp.data.name);
+        }else if (resp.errno == '4101'){
+            //未登录
+            location.href = 'login.html'
+        }
+    }, 'json')
     //页面一加载，阻止form表单默认的提交行为
     $('#form-avatar').submit(function (e) {
         e.preventDefault();
@@ -25,10 +36,13 @@ $(document).ready(function () {
             success: function (resp) {
                 if (resp.errno == '0'){
                     //上传成功
-                    $('#user-avatar').attr('src', resp.data.url)
+                    $('#user-avatar').attr('src', resp.data.url);
+                }else if (resp.errno == '4101'){
+                    //未登录
+                    location.href = 'login.html'
                 }else {
                     //上传失败
-                    alert('上传失败:'+resp.errmsg)
+                    alert('上传失败:'+resp.errmsg);
                 }
             }
         })
@@ -55,6 +69,9 @@ $(document).ready(function () {
                 if (resp.errno == '0') {
                     //设置成功
                     location.href='my.html'
+                }else if (resp.errno == '4101'){
+                    //未登录
+                    location.href = 'login.html'
                 }else {
                     //设置失败
                     alert(resp.errmsg)

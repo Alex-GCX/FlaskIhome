@@ -8,8 +8,8 @@ class BasicModel(db.Model):
     __abstract__ = True
 
     id = db.Column(db.Integer, primary_key=True)
-    created_date = db.Column(db.DateTime, nullable=False, default=datetime.now())
-    updated_date = db.Column(db.DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
+    created_date = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    updated_date = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
     is_delete = db.Column(db.Boolean, nullable=False, default=False)
 
 
@@ -54,6 +54,12 @@ class Areas(BasicModel):
         return self.name
 
 
+# 房屋和设置表属于多对多关系, 官方推荐db.table的方式建立多对多关系
+house_facilities = db.Table('ih_house_facilities',
+                            db.Column('house_id', db.Integer, db.ForeignKey('ih_houses.id'), nullable=False),
+                            db.Column('facility_id', db.Integer, db.ForeignKey('ih_facilities.id'), nullable=False))
+
+
 class Houses(BasicModel):
     """房屋模型类"""
     __tablename__ = 'ih_houses'
@@ -64,7 +70,7 @@ class Houses(BasicModel):
     area = db.relationship('Areas', backref='houses')
 
     title = db.Column(db.String(240), nullable=False)
-    price = db.Column(db.Integer, default=0)  # 单价，单位：分
+    price = db.Column(db.Integer, default=0)  # 单价，单位：元
     address = db.Column(db.String(512))  # 地址
     room_count = db.Column(db.Integer, default=1)  # 房间数目
     acreage = db.Column(db.Integer, default=0)  # 房屋面积
@@ -73,9 +79,14 @@ class Houses(BasicModel):
     beds = db.Column(db.String(64))  # 房屋床铺的配置
     deposit = db.Column(db.Integer, default=0)  # 房屋押金
     min_days = db.Column(db.Integer, default=1)  # 最少入住天数
-    max_days = db.Column(db.Integer, default=0)  # 最多入住天数，0表示不限制
+    max_days = db.Column(db.Integer, default=0)  # 最多入住天数，负数表示不限制
     order_count = db.Column(db.Integer, default=0)  # 该房屋的历史订单数
     default_image_url = db.Column(db.String(240))  # 默认显示的图片
+    facilities = db.relationship('Facilities', secondary=house_facilities, backref='houses')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'title', name='uix_ih_houses_user_id_title'),
+    )
 
     # 友好展示模型类对象
     def __repr__(self):
@@ -91,17 +102,12 @@ class HouseImages(BasicModel):
     image_url = db.Column(db.String(240), nullable=False)
 
 
-# 房屋和设置表属于多对多关系, 官方推荐db.table的方式建立多对多关系
-house_facilities = db.Table('ih_house_facilities',
-                            db.Column('house_id', db.Integer, db.ForeignKey('ih_houses.id'), nullable=False),
-                            db.Column('facility_id', db.Integer, db.ForeignKey('ih_facilities.id'), nullable=False))
-
-
 class Facilities(BasicModel):
     """基础设置模型类"""
     __tablename__ = 'ih_facilities'
 
     name = db.Column(db.String(32), nullable=False)
+    # houses = db.relationship('Houses', sencondary=house_facilities, backref='facilities')
 
     # 友好展示模型类对象
     def __repr__(self):

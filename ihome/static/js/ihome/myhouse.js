@@ -1,3 +1,12 @@
-$(document).ready(function(){
-    $(".auth-warn").show();
+$(document).ready(function () {
+    //发送ajax请求获取实名认证信息
+    $.get('api/v1.0/user/auth', function (resp) {
+        if(resp.errno == '0' && resp.data.real_name && resp.data.real_id_card){
+            //已实名制
+            $(".auth-warn").hide()
+        }else {
+            $(".auth-warn").show();
+            $(".new-house").hide();
+        }
+    }, 'json')
 })

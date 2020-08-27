@@ -21,3 +21,6 @@ QN_ACCESS_KEY = 'kF97AuR8DoXn6XAlKQxYu7r5vdq9a1OYP37YRJ5Z'
 QN_SECRET_KEY = 'sSSxlD9fpUxyRH8TBK21G_Ic67ydoBe-OYgjcjyM'
 QN_BUCKET_NAME = 'alex-ihome'
 QN_HOST = 'http://qfan653gi.hd-bkt.clouddn.com/'
+
+# 城区缓存信息, 七天， 单位秒
+AREA_REDIS_EXPIRES = 7*24*3600

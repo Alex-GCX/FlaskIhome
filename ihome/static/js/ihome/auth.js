@@ -1,7 +1,8 @@
 function showSuccessMsg() {
     $('.popup_con').fadeIn('fast', function() {
         setTimeout(function(){
-            $('.popup_con').fadeOut('fast',function(){}); 
+            $('.popup_con').fadeOut('fast',function(){});
+            location.href = 'auth.html';
         },1000) 
     });
 }
@@ -15,18 +16,19 @@ function getCookie(name){
 $(document).ready(function (){
     //发送请求获取已有的认证信息
     $.get('/api/v1.0/user/auth', function (resp) {
-        if(resp.errno == '0'){
+        if (resp.errno == '0'){
             //获取成功
-            var realName = resp.data.real_name
-            var idCard = resp.data.real_id_card
-            console.log(realName)
-            console.log(idCard)
+            var realName = resp.data.real_name;
+            var idCard = resp.data.real_id_card;
             if (realName && idCard){
                 //设置展示
-                $('#real-name').attr({'value': realName, 'readonly': 'readonly'})
-                $('#id-card').attr({'value': idCard, 'readonly': 'readonly'})
-                $('.btn-success').attr('disabled', 'disabled')
+                $('#real-name').attr({'value': realName, 'readonly': 'readonly'});
+                $('#id-card').attr({'value': idCard, 'readonly': 'readonly'});
+                $('.btn-success').hide();
             }
+        }else if (resp.errno == '4101'){
+            //未登录
+            location.href = 'login.html'
         }
     }, 'json')
     //设置表单提交事件
@@ -55,13 +57,12 @@ $(document).ready(function (){
             dataType: 'json',
             headers: {'X-CSRFToken': getCookie('csrf_token')},
             success: function (resp) {
-                if(resp.errno == '0'){
+                if (resp.errno == '0'){
                     //认证成功
-                    alert('认证成功')
-                    location.href = 'auth.html'
+                    showSuccessMsg();
                 }else{
                     //认证失败
-                    alert(resp.errmsg)
+                    alert(resp.errmsg);
                 }
             }
         })

@@ -14,11 +14,15 @@ class BasicConfig:
     REDIS_PORT = 6379
     REDIS_CACHE_DB = 0  # 缓存数据库
     REDIS_SESSION_DB = 1  # session数据库
+    REDIS_CELERY_DB = 2  # celery的broker
     # flask-session配置
     SESSION_TYPE = 'redis'
     SESSION_REDIS = redis.StrictRedis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_SESSION_DB)
     SESSION_USE_SIGNER = True
     PERMANENT_SESSION_LIFETIME = 86400  # session缓存时间, 单位:秒, 设置为1天
+    # celery配置
+    CELERY_BROKER_URL = f'redis://{REMOTE_SERVER}:6379/{REDIS_CELERY_DB}'
+    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 
 class DevConfig(BasicConfig):

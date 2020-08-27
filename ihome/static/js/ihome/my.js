@@ -29,6 +29,9 @@ $(document).ready(function(){
             $('#user-avatar').attr('src', resp.data.url);
             $('#user-name').html(resp.data.name);
             $('#user-mobile').html(resp.data.mobile);
+        }else if (resp.errno == '4101'){
+            //未登录
+            location.href = 'login.html'
         }
     })
 })
