@@ -1,9 +1,10 @@
 import json
-from flask import jsonify, current_app, request, g
+import datetime
+from flask import jsonify, current_app, request, g, session
 from sqlalchemy.exc import IntegrityError
 from . import api
 from ihome import redis_connect, db, csrf
-from ihome.models import Areas, Houses, HouseImages, Facilities
+from ihome.models import Areas, Houses, HouseImages, Facilities, Orders
 from ihome.utils.response_codes import RET
 from ihome.utils import constants
 from ihome.utils.commons import login_required, parameter_error
@@ -14,7 +15,7 @@ from ihome.utils.image_storage import storage
 def get_areas():
     # 从缓存中获取城区信息
     try:
-        areas = redis_connect.get('areas')
+        areas = redis_connect.get('areas').decode()
     except Exception as e:
         current_app.logger.error(e)
         areas = None
@@ -37,7 +38,7 @@ def get_areas():
         except Exception as e:
             current_app.logger.error(e)
 
-    return areas, 200, {'content-Type': 'application/json'}
+    return f'{{"errno": "0", "data": {areas}}}', 200, {'content-Type': 'application/json'}
 
 
 @api.route('/houses', methods=['POST', 'PUT'])
@@ -65,7 +66,8 @@ def create_or_update_house():
 
     # 校验数据
     if not all(
-            [title, price, area_id, address, room_count, acreage, unit, capacity, beds, deposit, min_days, facility_ids]):
+            [title, price, area_id, address, room_count, acreage, unit, capacity, beds, deposit, min_days,
+             facility_ids]):
         return parameter_error()
 
     # 校验金额格式, 转化为两位小数
@@ -194,12 +196,156 @@ def create_house_images():
         return jsonify(errno=RET.THIRDERR, errmsg=f'上传失败:{ret["errmsg"]}')
 
     # 上传成功, 创建图片数据
+    house_image = HouseImages(house=house, image_url=ret['url'])
+    db.session.add(house_image)
+    # 保存房屋的默认图片
+    if not house.default_image_url:
+        house.default_image_url = ret['url']
+        db.session.add(house)
+    # 提交数据
     try:
-        house_image = HouseImages(house=house, image_url=ret['url'])
-        db.session.add(house_image)
         db.session.commit()
     except Exception as e:
         current_app.logger.error(e)
         return jsonify(errno=RET.DBERR, errmsg='保存图片信息异常')
 
     return jsonify(errno=RET.OK, data={'url': ret['url']})
+
+
+@api.route('/user/houses')
+@login_required
+def get_user_houses():
+    """返回我的房源列表信息"""
+    user = g.user
+    # 获取该用户下的房屋对象列表
+    try:
+        house_objs = user.houses
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg='获取房屋信息异常')
+    # 获取房屋列表页需要展示的信息
+    houses = [obj.get_list_info() for obj in house_objs]
+    return jsonify(errno=RET.OK, data=houses)
+
+
+@api.route('/houses/<int:house_id>')
+def get_house_info(house_id):
+    # 查询缓存中是否存在数据
+    redis_key = f'house_info_{house_id}'
+    try:
+        info_json = redis_connect.get(redis_key).decode()
+    except Exception as e:
+        current_app.logger.error(e)
+        info_json = None
+    # 缓存中不存在则查询房屋信息
+    if not info_json:
+        try:
+            house = Houses.query.get(house_id)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg='获取房屋信息异常')
+        if not house:
+            return jsonify(errno=RET.NODATA, errmsg='房屋ID不存在')
+        # 获取房屋详情
+        info = house.get_detail_info()
+        # 获取当前登录用户, 为空则说明未登录
+        user_id = session.get('user_id', '-1')
+        # 将当前用户加入房屋详情中
+        info['user_id'] = user_id
+        # 将字典转为json
+        info_json = json.dumps(info)
+        # 存入缓存中
+        redis_connect.setex(redis_key, constants.HOUSE_REDIS_EXPIRES, info_json)
+
+    return f'{{"errno": 0, "data": {info_json}}}', 200, {'Content-Type': 'application/json'}
+
+
+@api.route('/index/houses')
+def get_index_houses():
+    redis_key = 'index_houses'
+    # 缓存中获取数据
+    try:
+        data_json = redis_connect.get(redis_key).decode()
+    except Exception as e:
+        current_app.logger.error(e)
+        data_json = None
+    # 不存在则查询数据库
+    if not data_json:
+        try:
+            # 根据房屋的订购次数倒序, 取前5个房屋
+            houses = Houses.query.filter(Houses.default_image_url is not None).order_by(
+                Houses.order_count.desc()).limit(constants.INDEX_HOUSES_COUNT).all()
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg='获取房屋信息异常')
+        # 提取房屋标题/图片/价格
+        data = [{'title': house.title, 'img_url': house.default_image_url, 'price': house.price, 'id': house.id} for
+                house in houses]
+        # 转化为json
+        data_json = json.dumps(data)
+        # 存入redis缓存中
+        redis_connect.setex(redis_key, constants.INDEX_HOUSES_EXPIRES, data_json)
+
+    return f'{{"errno": "0", "data": {data_json}}}', 200, {'Content-Type': 'application/json'}
+
+
+@api.route(
+    '/search/houses')  # /search/houses?aid=12&aname=平谷区&sd=2020-08-31&ed=2020-08-31&page=1&sorted_by=latest|hot|price
+def get_search_houses():
+    # 获取查询条件
+    area_id = request.args.get('aid')  # 地区ID
+    start_date = request.args.get('sd')  # 起始日期
+    end_date = request.args.get('ed')  # 结束日期
+    page = request.args.get('page')  # 页数
+    sorted_by = request.args.get('sorted_by')  # 排序
+
+    # 先从缓存中获取结果
+    redis_key = f'search_{area_id}_{start_date}_{end_date}_{page}_{sorted_by}'
+    try:
+        info_json = redis_connect.get(redis_key).decode()
+    except Exception as e:
+        current_app.logger.error(e)
+        info_json = None
+
+    # 缓存不存在则查询数据库
+    if not info_json:
+        # 处理条件, 出现异常则认为条件为空
+        # 地区ID
+        try:
+            area_id = int(area_id)
+        except Exception as e:
+            area_id = None
+        # 日期
+        try:
+            start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d') if start_date else None
+        except Exception as e:
+            return jsonify(errno=RET.PARAMERR, errmsg='日期格式错误')
+        if start_date and end_date and start_date > end_date:
+            return jsonify(errno=RET.PARAMERR, errmsg='起始日期不能大于终止日期')
+        # 页码
+        try:
+            page = int(page)
+        except Exception as e:
+            page = 1
+        # 排序
+        if sorted_by not in constants.SORTED_BY:
+            sorted_by = 'latest'
+        # 查询数据库
+        # 这里的起始日期和结束日期是需要针对订单模型类Orders的起始时间和结束时间来查的, 需要排除掉在参数查询时间段内已经出租了的房源
+        # 但是ORM中不太好使用子查询, 因此编写查询的思路就和包含子查询的SQL的执行过程差不多, 先执行子查询内部(查询订单表), 再执行外部(查询房屋表)
+        # 先从订单模型类中查出在查询时间段内已经租出去的房屋
+        ordered_orders = Orders.query.filter(Orders.status == 'ACCEPTED',
+                                             (start_date if start_date else Orders.start_date + 1) <= Orders.start_date,
+                                             Orders.end_date <= (end_date if end_date else Orders.end_date - 1)).all()
+        ordered_house_ids = [order.house_id for order in ordered_orders]
+        # 再查询房屋模型类, 把上面查到的房屋排除掉就好了
+        houses = Houses.query.filter(Houses.area_id == area_id if area_id else Houses.area_id,
+                                     Houses.id.notin_(ordered_house_ids)).all()
+        # 提取房屋信息
+        house_info = [house.get_search_info() for house in houses]
+        # 转为json
+        info_json = json.dumps(house_info)
+        # 存入缓存中
+        # redis_connect.setex(redis_key, constants.SEARCH_HOUSES_EXPIRES, info_json)
+    return f'{{"errno": "0", "data": {info_json}}}'

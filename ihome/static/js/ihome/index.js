@@ -62,26 +62,56 @@ $(document).ready(function(){
     $.get("/api/v1.0/sessions", function (resp) {
         if (resp.errno == '0'){
             //已登录，显示登录用户名
-            $(".user-info>.user-name").html(resp.data.name)
-            $(".user-info").show()
+            $(".user-info>.user-name").html(resp.data.name);
+            $(".user-info").show();
         }else{
             //未登录，显示登录注册框
             $(".top-bar>.register-login").show();
         }
     }, "json")
-    var mySwiper = new Swiper ('.swiper-container', {
-        loop: true,
-        autoplay: 2000,
-        autoplayDisableOnInteraction: false,
-        pagination: '.swiper-pagination',
-        paginationClickable: true
-    }); 
-    $(".area-list a").click(function(e){
-        $("#area-btn").html($(this).html());
-        $(".search-btn").attr("area-id", $(this).attr("area-id"));
-        $(".search-btn").attr("area-name", $(this).html());
-        $("#area-modal").modal("hide");
-    });
+
+    //发送ajax请求， 获取房屋信息
+    $.get('/api/v1.0/index/houses', function (resp) {
+        if (resp.errno == '0'){
+            //获取成功
+            //设置页面图片
+            $('.swiper-wrapper').html(template('index-houses', {houses: resp.data}));
+            //轮播图
+            var mySwiper = new Swiper ('.swiper-container', {
+                loop: true,
+                autoplay: 2000,
+                autoplayDisableOnInteraction: false,
+                pagination: '.swiper-pagination',
+                paginationClickable: true
+            });
+        }else {
+            //获取失败
+            alert(resp.errmsg);
+        }
+    }, 'json');
+
+    //发送ajax请求获取地区信息
+    $.get('api/v1.0/areas', function (resp) {
+        if (resp.errno == '0'){
+            //获取成功
+            //设置城区信息
+            $('.area-list').html(template('index-areas', {areas: resp.data}));
+            //设置城区的点击事件
+            $('.area-list a').click(function (e) {
+                //展示选择的城区
+                $('#area-btn').html($(this).html());
+                //给搜索按钮添加选择的地区属性, 因为搜索按钮点击后会从自身获取搜索条件
+                $('.search-btn').attr('area-id', $(this).attr('area-id'));
+                $('.search-btn').attr('area-name', $(this).html());
+                //隐藏城区选择框
+                $('#area-modal').modal("hide");
+            });
+        }else {
+            //获取失败
+            alert(resp.errmsg);
+        }
+    }, 'json');
+
     $('.modal').on('show.bs.modal', centerModals);      //当模态框出现的时候
     $(window).on('resize', centerModals);               //当窗口大小变化的时候
     $("#start-date").datepicker({

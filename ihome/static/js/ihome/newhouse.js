@@ -9,9 +9,9 @@ $(document).ready(function(){
 
     //获取房屋信息
     $.get("api/v1.0/areas", function (resp) {
-        if (!resp.errno){
+        if (resp.errno == '0'){
             //获取到城区数据
-            var areas = resp;
+            var areas = resp.data;
             // 方法一:通过jQuery循环, 在select下面添加option标签
             // for (var key in areas){
             //     //<option value="1">东区</option>

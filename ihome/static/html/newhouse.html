@@ -41,12 +41,9 @@
                             <label for="area-id">所在城区</label>
                             <select class="form-control" id="area-id" name="area_id">
                                 <script type="text/html" id="area-option">
-{#                                    {{ each areas }}#}
-{#                                    <option value = "{{ $index }}">{{ $value }}</option>#}
-{#                                    {{ /each }}#}
-                                    {{each areas val key}}
-                                        <option value="{{key}}">{{val}}</option>
-                                    {{/each}}
+                                    {{ each areas }}
+                                    <option value = "{{ $index }}">{{ $value }}</option>
+                                    {{ /each }}
                                 </script>
                             </select>
                         </div>

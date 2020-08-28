@@ -23,4 +23,22 @@ QN_BUCKET_NAME = 'alex-ihome'
 QN_HOST = 'http://qfan653gi.hd-bkt.clouddn.com/'
 
 # 城区缓存信息, 七天， 单位秒
-AREA_REDIS_EXPIRES = 7*24*3600
+AREA_REDIS_EXPIRES = 7 * 24 * 3600
+
+# 评论展示条数
+COMMENT_DISPLAY_COUNTS = 10
+
+# 房屋详情缓存信息, 七天， 单位秒
+HOUSE_REDIS_EXPIRES = 7 * 24 * 3600
+
+# 首页最多展示房屋数量
+INDEX_HOUSES_COUNT = 5
+
+# 首页房屋缓存信息, 七天， 单位秒
+INDEX_HOUSES_EXPIRES = 7 * 24 * 3600
+
+# 查询排序范围
+SORTED_BY = ['latest', 'hot', 'price', '-price']
+
+# 房屋查询结果缓存, 七天， 单位秒
+SEARCH_HOUSES_EXPIRES = 7 * 24 * 3600

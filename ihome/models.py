@@ -1,6 +1,7 @@
-from ihome import db
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from ihome import db
+from ihome.utils.constants import COMMENT_DISPLAY_COUNTS
 
 
 class BasicModel(db.Model):
@@ -92,6 +93,60 @@ class Houses(BasicModel):
     def __repr__(self):
         return self.title
 
+    # 房屋列表页的信息
+    def get_list_info(self):
+        return {
+            'house_id': self.id,
+            'title': self.title,
+            'area_name': self.area.name,
+            'price': self.price,
+            'created_date': datetime.strftime(self.created_date, '%Y-%m-%d %H:%M:%S'),
+            'img_url': self.default_image_url,
+        }
+
+    # 房屋详细信息
+    def get_detail_info(self):
+        return {
+            'img_urls': [image.image_url for image in self.images],
+            'title': self.title,
+            'price': self.price,
+            'owner_id': self.user.id,
+            'owner_img_url': self.user.image_url,
+            'owner_name': self.user.name,
+            'address': self.address,
+            'room_count': self.room_count,
+            'acreage': self.acreage,
+            'unit': self.unit,
+            'capacity': self.capacity,
+            'beds': self.beds,
+            'deposit': self.deposit,
+            'min_days': self.min_days,
+            'max_days': self.max_days,
+            'facilities': [facility.id for facility in self.facilities],
+            'comments': [order.get_comment() for order in self.get_comment_orders()],
+        }
+
+    # 房屋查询页信息
+    def get_search_info(self):
+        return {
+            'house_id': self.id,
+            'title': self.title,
+            'img_url': self.default_image_url,
+            'owner_img_url': self.user.image_url,
+            'price': self.price,
+            'room_count': self.room_count,
+            'order_count': self.order_count,
+            'address': self.address
+        }
+
+    def get_comment_orders(self):
+        """获取房屋评论过的订单"""
+        # 房屋ID当前房屋的/订单状态为已完成的/评论内容不为空的/根据最后更新时间倒叙排序/获取前10条评论展示
+        orders = Orders.query.filter(Orders.house_id == self.id, Orders.status == 'COMPLETED',
+                                     Orders.comment is not None).order_by(Orders.updated_date.desc()).limit(
+            COMMENT_DISPLAY_COUNTS).all()
+        return orders
+
 
 class HouseImages(BasicModel):
     """房屋图片表"""
@@ -107,6 +162,7 @@ class Facilities(BasicModel):
     __tablename__ = 'ih_facilities'
 
     name = db.Column(db.String(32), nullable=False)
+
     # houses = db.relationship('Houses', sencondary=house_facilities, backref='facilities')
 
     # 友好展示模型类对象
@@ -135,3 +191,12 @@ class Orders(BasicModel):
     # 友好展示模型类对象
     def __repr__(self):
         return self.order_num
+
+    # 获取评论信息
+    def get_comment(self):
+        """获取评论信息"""
+        return {
+            'user_name': self.user.name if self.user.name != self.user.phone else '匿名用户',
+            'comment_date': datetime.strftime(self.updated_date, '%Y-%m-%d %H:%M:%S'),
+            'comment': self.comment
+        }
