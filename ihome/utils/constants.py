@@ -1,4 +1,5 @@
-from .commons import get_internet_host
+import json
+import requests
 
 # 图片验证码的redis有效期, 单位：秒
 IMAGE_CODE_REDIS_EXPIRES = 180
@@ -57,6 +58,16 @@ ORDER_STATUS = {
     'CANCELLED': '已取消',
     'REJECTED': '已拒绝',
 }
+
+
+def get_internet_host():
+    # 访问 https://jsonip.com/ 获取json结果
+    response = requests.get('https://jsonip.com/').text
+    # json 转为字典
+    response = json.loads(response)
+    # 字典提取ip
+    return response['ip']
+
 
 # 支付宝支付设置-沙箱环境
 # 支付宝网
