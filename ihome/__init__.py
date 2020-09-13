@@ -40,7 +40,7 @@ csrf = CSRFProtect()
 # 设置日志的记录等级
 logging.basicConfig(level=logging.INFO)
 # 创建日志记录器，指明日志保存的路径、每个日志文件的最大大小、保存的日志文件个数上限
-file_log_handler = RotatingFileHandler("logs/log", maxBytes=1024 * 1024, backupCount=10)
+file_log_handler = RotatingFileHandler("logs/log.log", maxBytes=1024 * 1024, backupCount=1)
 # 创建日志记录的格式                 日志等级    输入日志信息的文件名 行数    日志信息
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(lineno)s - %(message)s')
 # 为刚创建的日志记录器设置日志记录格式

@@ -3,6 +3,8 @@ from flask import session, jsonify, g, current_app
 from .response_codes import RET
 from ihome.models import Users
 import functools
+import json
+import requests
 
 
 class ReConverter(BaseConverter):
@@ -17,6 +19,7 @@ class ReConverter(BaseConverter):
 
 def login_required(view_func):
     """登录验证装饰器"""
+
     @functools.wraps(view_func)
     def wrapper(*args, **kwargs):
         # 判断登录状态
@@ -36,8 +39,18 @@ def login_required(view_func):
             return jsonify(errno=RET.DBERR, errmsg='获取用户异常')
         # 执行视图函数
         return view_func(*args, **kwargs)
+
     return wrapper
 
 
 def parameter_error():
     return jsonify(errno=RET.PARAMERR, errmsg='参数不完整')
+
+
+def get_internet_host():
+    # 访问 https://jsonip.com/ 获取json结果
+    response = requests.get('https://jsonip.com/').text
+    # json 转为字典
+    response = json.loads(response)
+    # 字典提取ip
+    return response['ip']

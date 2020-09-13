@@ -5,7 +5,8 @@ class BasicConfig:
     """app基础设置类"""
     SECRET_KEY = 'AKDKMAmd1235jijg9123'
     # 远程服务器
-    REMOTE_SERVER = 'alex-gcx.com'
+    # REMOTE_SERVER = 'alex-gcx.com'
+    REMOTE_SERVER = '47.102.114.90'
     # 数据库设置
     SQLALCHEMY_DATABASE_URI = f'mysql://root:root@{REMOTE_SERVER}:3306/ihome'
     SQLALCHEMY_TRACK_MODIFICATIONS = True

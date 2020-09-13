@@ -1,7 +1,8 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import current_app
 from ihome import db
-from ihome.utils.constants import COMMENT_DISPLAY_COUNTS
+from ihome.utils.constants import COMMENT_DISPLAY_COUNTS, ORDER_STATUS
 
 
 class BasicModel(db.Model):
@@ -142,10 +143,24 @@ class Houses(BasicModel):
     def get_comment_orders(self):
         """获取房屋评论过的订单"""
         # 房屋ID当前房屋的/订单状态为已完成的/评论内容不为空的/根据最后更新时间倒叙排序/获取前10条评论展示
-        orders = Orders.query.filter(Orders.house_id == self.id, Orders.status == 'COMPLETED',
-                                     Orders.comment is not None).order_by(Orders.updated_date.desc()).limit(
-            COMMENT_DISPLAY_COUNTS).all()
+        try:
+            orders = Orders.query.filter(Orders.house_id == self.id, Orders.status == 'COMPLETED',
+                                         Orders.comment is not None).order_by(Orders.updated_date.desc()).limit(
+                COMMENT_DISPLAY_COUNTS).all()
+        except Exception as e:
+            current_app.logger.error(e)
+            orders = None
         return orders
+
+    # 获取创建订单时的房屋信息
+    def get_booking_info(self):
+        """获取创建订单时的房屋信息"""
+        return {
+            'house_id': self.id,
+            'title': self.title,
+            'img_url': self.default_image_url,
+            'price': self.price
+        }
 
 
 class HouseImages(BasicModel):
@@ -174,7 +189,7 @@ class Orders(BasicModel):
     """订单模型类"""
     __tablename__ = 'ih_orders'
 
-    order_num = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    order_num = db.Column(db.String(30), unique=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey('ih_users.id'), nullable=False)
     user = db.relationship('Users', backref='orders')
     house_id = db.Column(db.Integer, db.ForeignKey('ih_houses.id'), nullable=False)
@@ -184,13 +199,16 @@ class Orders(BasicModel):
     days = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Integer, nullable=False)
     amount = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.Text)
-    status = db.Column(db.Enum('NEW', 'PAID', 'ACCEPTED', 'COMPLETED', 'REJECTED', 'CANCELLED'), default='NEW',
-                       index=True)
+    comment = db.Column(db.Text)  # 订单评论或者拒单原因
+    status = db.Column(
+        db.Enum('WAIT_ACCEPT', 'WAIT_PAYMENT', 'WAIT_COMMENT', 'COMPLETED', 'CANCELLED', 'REJECTED'),
+        default='WAIT_ACCEPT',
+        index=True)
+    trade_no = db.Column(db.String(80))  # 支付宝流水号
 
     # 友好展示模型类对象
     def __repr__(self):
-        return self.order_num
+        return str(self.id)
 
     # 获取评论信息
     def get_comment(self):
@@ -199,4 +217,21 @@ class Orders(BasicModel):
             'user_name': self.user.name if self.user.name != self.user.phone else '匿名用户',
             'comment_date': datetime.strftime(self.updated_date, '%Y-%m-%d %H:%M:%S'),
             'comment': self.comment
+        }
+
+    # 获取订单列表展示的信息
+    def get_list_info(self):
+        return {
+            'order_id': self.id,
+            'status': self.status,
+            'status_info': ORDER_STATUS.get(self.status),
+            'img_url': self.house.default_image_url,
+            'house_id': self.house.id,
+            'title': self.house.title,
+            'ctime': datetime.strftime(self.created_date, '%Y-%m-%d %H:%M:%S'),
+            'start_date': datetime.strftime(self.start_date, '%Y-%m-%d'),
+            'end_date': datetime.strftime(self.end_date, '%Y-%m-%d'),
+            'amount': self.amount,
+            'days': self.days,
+            'comment': self.comment,
         }

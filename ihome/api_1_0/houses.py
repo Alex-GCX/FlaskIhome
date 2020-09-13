@@ -230,6 +230,8 @@ def get_user_houses():
 
 @api.route('/houses/<int:house_id>')
 def get_house_info(house_id):
+    # 获取当前登录用户, 为空则说明未登录
+    user_id = session.get('user_id', '-1')
     # 查询缓存中是否存在数据
     redis_key = f'house_info_{house_id}'
     try:
@@ -248,16 +250,13 @@ def get_house_info(house_id):
             return jsonify(errno=RET.NODATA, errmsg='房屋ID不存在')
         # 获取房屋详情
         info = house.get_detail_info()
-        # 获取当前登录用户, 为空则说明未登录
-        user_id = session.get('user_id', '-1')
-        # 将当前用户加入房屋详情中
-        info['user_id'] = user_id
         # 将字典转为json
         info_json = json.dumps(info)
         # 存入缓存中
         redis_connect.setex(redis_key, constants.HOUSE_REDIS_EXPIRES, info_json)
 
-    return f'{{"errno": 0, "data": {info_json}}}', 200, {'Content-Type': 'application/json'}
+    return f'{{"errno": 0, "data": {{"user_id": {user_id}, "house": {info_json}}}}}', 200, {
+        'Content-Type': 'application/json'}
 
 
 @api.route('/index/houses')
@@ -289,8 +288,8 @@ def get_index_houses():
     return f'{{"errno": "0", "data": {data_json}}}', 200, {'Content-Type': 'application/json'}
 
 
-@api.route(
-    '/search/houses')  # /search/houses?aid=12&aname=平谷区&sd=2020-08-31&ed=2020-08-31&page=1&sorted_by=latest|hot|price
+# /search/houses?aid=12&sd=2020-08-31&ed=2020-08-31&page=1&sorted_by=new|booking|price-inc|price-des
+@api.route('/search/houses')
 def get_search_houses():
     # 获取查询条件
     area_id = request.args.get('aid')  # 地区ID
@@ -300,9 +299,9 @@ def get_search_houses():
     sorted_by = request.args.get('sorted_by')  # 排序
 
     # 先从缓存中获取结果
-    redis_key = f'search_{area_id}_{start_date}_{end_date}_{page}_{sorted_by}'
+    redis_key = f'search_{area_id}_{start_date}_{end_date}_{sorted_by}'
     try:
-        info_json = redis_connect.get(redis_key).decode()
+        info_json = redis_connect.hget(redis_key, page).decode()
     except Exception as e:
         current_app.logger.error(e)
         info_json = None
@@ -318,7 +317,7 @@ def get_search_houses():
         # 日期
         try:
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
-            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d') if start_date else None
+            end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
         except Exception as e:
             return jsonify(errno=RET.PARAMERR, errmsg='日期格式错误')
         if start_date and end_date and start_date > end_date:
@@ -330,22 +329,95 @@ def get_search_houses():
             page = 1
         # 排序
         if sorted_by not in constants.SORTED_BY:
-            sorted_by = 'latest'
+            sorted_by = 'new'
         # 查询数据库
         # 这里的起始日期和结束日期是需要针对订单模型类Orders的起始时间和结束时间来查的, 需要排除掉在参数查询时间段内已经出租了的房源
         # 但是ORM中不太好使用子查询, 因此编写查询的思路就和包含子查询的SQL的执行过程差不多, 先执行子查询内部(查询订单表), 再执行外部(查询房屋表)
+
         # 先从订单模型类中查出在查询时间段内已经租出去的房屋
-        ordered_orders = Orders.query.filter(Orders.status == 'ACCEPTED',
-                                             (start_date if start_date else Orders.start_date + 1) <= Orders.start_date,
-                                             Orders.end_date <= (end_date if end_date else Orders.end_date - 1)).all()
+        # 使用列表把查询条件动态汇总起来
+        filter_param = [Orders.status == 'ACCEPTED']
+        if start_date and end_date:
+            # 若条件起止日期都存在, 那么找订单的起止日期包含在条件的起止日期内的订单
+            filter_param.append(start_date <= Orders.start_date)
+            filter_param.append(Orders.end_date <= end_date)
+        elif start_date:
+            # 若条件的开始日期存在, 结束日期为空, 那么只需要找订单的结束日期不小于条件的开始日期的订单
+            filter_param.append(Orders.end_date >= start_date)
+        elif end_date:
+            # 若条件的开始日期为空, 结束日期存在, 那么只需要找订单的开始日期不大于条件的结束日期的订单
+            filter_param.append(Orders.start_date <= end_date)
+            # 若条件的起止日期都为空, 那么只需要找有顾客正在入住的订单, 即状态为accepted
+
+        # 通过拆包把查询条件拆开进行查询
+        try:
+            ordered_orders = Orders.query.filter(*filter_param).all()
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg='获取订单数据异常')
+        # 获取订单的id
         ordered_house_ids = [order.house_id for order in ordered_orders]
+
         # 再查询房屋模型类, 把上面查到的房屋排除掉就好了
-        houses = Houses.query.filter(Houses.area_id == area_id if area_id else Houses.area_id,
-                                     Houses.id.notin_(ordered_house_ids)).all()
+        try:
+            houses_query_set = Houses.query.filter(Houses.area_id == area_id if area_id else Houses.area_id,
+                                                   Houses.id.notin_(ordered_house_ids))
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg='获取房屋数据异常')
+
+        # 排序
+        if sorted_by == 'new':
+            houses_query_set = houses_query_set.order_by(Houses.created_date.desc())
+        elif sorted_by == 'booking':
+            houses_query_set = houses_query_set.order_by(Houses.order_count.desc())
+        elif sorted_by == 'price-inc':
+            houses_query_set = houses_query_set.order_by(Houses.price)
+        else:
+            houses_query_set = houses_query_set.order_by(Houses.price.desc())
+
+        # 分页, 把结果按每页per_page条记录进行分页, 获取第page页的分页对象pagination
+        try:
+            pagination = houses_query_set.paginate(page=page, per_page=constants.SEARCH_HOUSES_PAGE_COUNT)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg='数据分页异常')
+        # 获取页面数据和总页数
+        houses = pagination.items
+        total_page = pagination.pages
+
         # 提取房屋信息
         house_info = [house.get_search_info() for house in houses]
+        info_dict = {'house_info': house_info, 'current_page': page, 'total_page': total_page}
         # 转为json
-        info_json = json.dumps(house_info)
-        # 存入缓存中
-        # redis_connect.setex(redis_key, constants.SEARCH_HOUSES_EXPIRES, info_json)
+        info_json = json.dumps(info_dict)
+
+        # 存入缓存中, 存在多条命令需要保持一致性, 所以使用pipeline
+        try:
+            # 创建pipeline对象
+            pipe = redis_connect.pipeline()
+            # 往管道添加命令
+            pipe.hset(redis_key, page, info_json)
+            pipe.expire(redis_key, constants.SEARCH_HOUSES_EXPIRES)
+            # 统一执行命令
+            pipe.execute()
+        except Exception as e:
+            current_app.logger.error(e)
+
     return f'{{"errno": "0", "data": {info_json}}}'
+
+
+@api.route('/booking/houses/<int:house_id>')
+@login_required
+def get_order_house(house_id):
+    # 查询房屋信息
+    try:
+        house = Houses.query.get(house_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg='获取房屋信息异常')
+    if not house:
+        return jsonify(errno=RET.PARAMERR, errmsg='房屋ID不存在')
+    # 获取房屋信息
+    house_info = house.get_booking_info()
+    return jsonify(errno=RET.OK, data=house_info)

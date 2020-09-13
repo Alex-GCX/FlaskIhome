@@ -3,11 +3,28 @@ function getCookie(name) {
     return r ? r[1] : undefined;
 }
 
+function generateUUID() {
+    var d = new Date().getTime();
+    if(window.performance && typeof window.performance.now === "function"){
+        d += performance.now(); //use high-precision timer if available
+    }
+    var uuid = 'xxxxxx'.replace(/[xy]/g, function(c) {
+        var r = (d + Math.random()*16)%16 | 0;
+        d = Math.floor(d/16);
+        return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+    });
+    return uuid;
+}
+
 $(document).ready(function(){
     // $('.popup_con').fadeIn('fast');
     // $('.popup_con').fadeOut('fast');
 
-    //获取房屋信息
+    //默认设置房屋标题
+    var title = generateUUID()
+    $('#house-title').val(title);
+
+    //获取地区信息
     $.get("api/v1.0/areas", function (resp) {
         if (resp.errno == '0'){
             //获取到城区数据
@@ -26,7 +43,7 @@ $(document).ready(function(){
             //存在错误
             alert(resp.errmsg);
         }
-    }, 'json')
+    }, 'json');
 
     //发布房源表单的提交
     $('#form-house-info').submit(function (e) {

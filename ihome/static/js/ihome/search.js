@@ -1,4 +1,10 @@
+//初始化页面全局变量
+var curr_page = 1;
+var next_page = 1;
+var total_page = 1;
+var house_data_querying = true;   //表示正在查询过程中, 则此时不能再发送查询请求
 
+//解析url
 function decodeQuery(){
     var search = decodeURI(document.location.search);
     return search.replace(/(^\?)/, '').split('&').reduce(function(result, item){
@@ -8,6 +14,7 @@ function decodeQuery(){
     }, {});
 }
 
+//更新日期
 function updateFilterDateDisplay() {
     var startDate = $("#start-date").val();
     var endDate = $("#end-date").val();
@@ -20,9 +27,14 @@ function updateFilterDateDisplay() {
     }
 }
 
-
-function send_ajax(areaId, startDate, endDate, page, sortedBy){
-    //处理参数
+//定义发送搜索请求的方法, 参数action为表示追加显示查询结果还是刷新显示查询结果
+function send_ajax(action){
+    //从html中获取查询条件
+    var areaId = $('.filter-area li[class="active"]').attr('area-id');
+    var startDate = $("#start-date").val();
+    var endDate = $("#end-date").val();
+    var sortedBy = $(".filter-sort li[class='active']").attr('sort-key');
+    //处理查询条件
     if (areaId == undefined){
         areaId = ''
     }
@@ -32,19 +44,39 @@ function send_ajax(areaId, startDate, endDate, page, sortedBy){
     if (endDate == undefined){
         endDate = ''
     }
-    if (page == undefined){
-        page = 1
-    }
     if (sortedBy == undefined){
-        sortedBy = 'latest'
+        sortedBy = 'new'
+    }
+    //append追加则查询下一页, 否则重新查询第一页
+    if (action == 'append'){
+        page = next_page
+    }else {
+        page = 1
     }
     //发送ajax请求执行查询
     var searchUrl ='api/v1.0/search/houses?aid='+areaId+'&sd='+startDate+'&ed='+endDate+'&page='+page+'&sorted_by='+sortedBy;
     $.get(searchUrl, function (resp) {
+        //进入回调函数, 则把查询状态改为false
+        house_data_querying = false;
         if (resp.errno == '0'){
-            //查询成功
-            //使用模板设置查询结果
-            $('.house-list').html(template('search-houses', {houses: resp.data}));
+            if (resp.data.total_page == 0){
+                $('.house-list').html('暂时没有符合条件的房源信息')
+            }else {
+                //查询成功
+                total_page = resp.data.total_page;
+                //使用模板设置查询结果
+                if (action == 'append'){
+                    //拼接展示这一页的信息
+                    curr_page = page
+                    $('.house-list').append(template('search-houses', {houses: resp.data.house_info}));
+                }else{
+                    //重置当前页为1
+                    curr_page = 1
+                    next_page = 1
+                    //重新查询覆盖
+                    $('.house-list').html(template('search-houses', {houses: resp.data.house_info}));
+                }
+            }
         }else{
             //查询失败
             alert(resp.errmsg);
@@ -57,12 +89,10 @@ $(document).ready(function(){
     //获取url查询条件
     var queryData = decodeQuery();
     //提取查询条件
-    var areaId = queryData["aid"];
     var areaName = queryData["aname"];
     var startDate = queryData["sd"];
     var endDate = queryData["ed"];
-    var page = queryData["page"];
-    var sortedBy = queryData["sorted_by"];
+    var areaId = queryData["aid"]
     //将url的查询日期设置到日期查询框中
     $("#start-date").val(startDate); 
     $("#end-date").val(endDate); 
@@ -74,13 +104,47 @@ $(document).ready(function(){
     //发送ajax请求查询地区信息
     $.get('api/v1.0/areas', function (resp) {
         if (resp.errno == '0'){
-            //获取成功
-            $('.filter-area').html(template('search-areas', {areas: resp.data}));
+            //获取成功, 添加地区列表html, 将url中的地区ID的li标签添加active属性
+            for (var i=1; i<Object.keys(resp.data).length+1; i++){
+                if (parseInt(areaId) == i){
+                    $(".filter-area").append('<li area-id="' + i + '" class="active">' + resp.data[i] + '</li>')
+                }else{
+                    $(".filter-area").append('<li area-id="' + i + '">' + resp.data[i] + '</li>')
+                }
+            }
+            // 发送查询请求
+            send_ajax('refresh');
         }
     }, 'json');
 
-    // 发送查询请求
-    send_ajax(areaId, startDate, endDate, page, sortedBy);
+    //这一步会在回调函数之前执行, 所以获取不到值, 需要放到上面的回调函数中
+    // send_ajax('refresh');
+
+    // 获取页面显示窗口的高度
+    var windowHeight = $(window).height();
+    // 为窗口的滚动添加事件函数
+    window.onscroll=function(){
+        // var a = document.documentElement.scrollTop==0? document.body.clientHeight : document.documentElement.clientHeight;
+        var b = document.documentElement.scrollTop==0? document.body.scrollTop : document.documentElement.scrollTop;
+        var c = document.documentElement.scrollTop==0? document.body.scrollHeight : document.documentElement.scrollHeight;
+        // 如果滚动到接近窗口底部
+        if(c-b<windowHeight+50){
+            // 如果没有正在向后端发送查询房屋列表信息的请求
+            if (!house_data_querying) {
+                // 将正在向后端查询房屋列表信息的标志设置为真，
+                house_data_querying = true;
+                // 如果当前页面数还没到达总页数
+                if(curr_page < total_page) {
+                    // 将要查询的页数设置为当前页数加1
+                    next_page = curr_page + 1;
+                    // 向后端发送请求，查询下一页房屋数据
+                    send_ajax('append');
+                } else {
+                    house_data_querying = false;
+                }
+            }
+        }
+    }
 
     $(".input-daterange").datepicker({
         format: "yyyy-mm-dd",
@@ -138,10 +202,8 @@ $(document).ready(function(){
         $(this).hide();
         $filterItem.removeClass('active');
         updateFilterDateDisplay();
-        // 发送查询请求
-        var areaId = $('.filter-area li[class="active"]').attr('area-id')
-        var startDate = $("#start-date").val();
-        var endDate = $("#end-date").val();
-        send_ajax(areaId, startDate, endDate, page, sortedBy);
+        // 执行查询
+        send_ajax('refresh');
     });
+
 })
