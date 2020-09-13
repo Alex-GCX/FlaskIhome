@@ -4,8 +4,6 @@ from flask_session import Session
 from flask_wtf import CSRFProtect
 import redis
 from config import config_map
-import logging
-from logging.handlers import RotatingFileHandler
 
 """
 一. 这个init文件主要向外暴露两方面的内容:
@@ -36,13 +34,16 @@ redis_connect = None
 # csrf对象
 csrf = CSRFProtect()
 
-# 配置日志信息
+import logging
+from logging.handlers import RotatingFileHandler
+# 使用flask run运行时, 则设置flask自己的日志配置
 # 设置日志的记录等级
 logging.basicConfig(level=logging.INFO)
 # 创建日志记录器，指明日志保存的路径、每个日志文件的最大大小、保存的日志文件个数上限
 file_log_handler = RotatingFileHandler("logs/log.log", maxBytes=1024 * 1024, backupCount=1)
 # 创建日志记录的格式                 日志等级    输入日志信息的文件名 行数    日志信息
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(lineno)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(lineno)s - %(message)s')
 # 为刚创建的日志记录器设置日志记录格式
 file_log_handler.setFormatter(formatter)
 # 为全局的日志工具对象（flask app使用的）添加日记录器

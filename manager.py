@@ -1,11 +1,16 @@
 from flask_migrate import Migrate
 from ihome import create_app
 from ihome import db
-# from celery import Celery
+import logging
 
 app = create_app('dev')
-# 创建celery对象
-# celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
-# celery.conf.update(app.config)
+
+# 配置日志信息
+if __name__ != '__main__':
+    # 使用gunicorn启动时, 将flask应用中的日志绑定到gunicorn的日志配置中
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel('INFO')
+
 # 创建迁移对象
 migrate = Migrate(app, db)
