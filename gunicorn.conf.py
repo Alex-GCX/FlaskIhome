@@ -5,7 +5,7 @@ worker_class = "gevent"
 # 绑定IP和端口
 bind = "0.0.0.0:5000"
 # 使用后台守护进程的模式启动
-daemon = "true"
+# daemon = "true"
 
 # 日志设置
 # 设置gunicorn访问日志格式，错误日志无法设置
