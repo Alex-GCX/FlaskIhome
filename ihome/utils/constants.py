@@ -61,6 +61,7 @@ ORDER_STATUS = {
 
 
 def get_internet_host():
+    """获取当前运行环境的IP地址"""
     # 访问 https://jsonip.com/ 获取json结果
     response = requests.get('https://jsonip.com/').text
     # json 转为字典

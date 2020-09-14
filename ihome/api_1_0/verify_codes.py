@@ -113,8 +113,8 @@ def send_sms_code(phone):
     # 保存短信验证码
     try:
         sms_code_key = f'sms_code_{phone}'
-        # redis_connect.setex(sms_code_key, constants.SMS_CODE_REDIS_EXPIRES, sms_code)
-        redis_connect.setex(sms_code_key, 432000, sms_code)  # 暂时存5天
+        redis_connect.setex(sms_code_key, constants.SMS_CODE_REDIS_EXPIRES, sms_code)
+        # redis_connect.setex(sms_code_key, 432000, sms_code)  # 暂时存5天
     except Exception as e:
         current_app.logger.error(e)
         return jsonify(errno=RET.DBERR, errmsg='redis保存短信验证码异常')
