@@ -37,8 +37,8 @@ HOUSE_REDIS_EXPIRES = 7 * 24 * 3600
 # 首页最多展示房屋数量
 INDEX_HOUSES_COUNT = 5
 
-# 首页房屋缓存信息, 七天， 单位秒
-INDEX_HOUSES_EXPIRES = 7 * 24 * 3600
+# 首页房屋缓存信息, 1天， 单位秒
+INDEX_HOUSES_EXPIRES = 24 * 3600
 
 # 查询排序范围
 SORTED_BY = ['new', 'booking', 'price-inc', 'price-des']
@@ -46,8 +46,8 @@ SORTED_BY = ['new', 'booking', 'price-inc', 'price-des']
 # 查询列表页每页数据量
 SEARCH_HOUSES_PAGE_COUNT = 3
 
-# 房屋查询结果缓存, 七天， 单位秒
-SEARCH_HOUSES_EXPIRES = 7 * 24 * 3600
+# 房屋查询结果缓存, 5分钟， 单位秒
+SEARCH_HOUSES_EXPIRES = 5 * 60
 
 # 订单状态与显示关系
 ORDER_STATUS = {
@@ -86,6 +86,7 @@ PRODUCT_CODE = 'QUICK_WAP_WAY'
 # 回调通知地址
 # 获取当前运行环境的公网IP地址
 internet_host = get_internet_host()
+# internet_host = '127.0.0.1'
 # 支付宝返回的url, 给跳转给用户访问
 ALIPAY_RETURN_URL = f"http://{internet_host}:5000/payresult.html"
 # 支付宝后台访问的url, 用户无感

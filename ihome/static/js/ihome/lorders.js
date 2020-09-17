@@ -75,7 +75,7 @@ $(document).ready(function(){
                 var orderId = $(this).attr("order-id");
                 var reason = $('#reject-reason').val();
                 //更新状态
-                var data = {acction: 'reject', comment: reason};
+                var data = {action: 'reject', comment: reason};
                 updateOrder(orderId, data);
             })
         }else{

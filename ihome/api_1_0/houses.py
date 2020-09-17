@@ -357,6 +357,7 @@ def get_search_houses():
             return jsonify(errno=RET.DBERR, errmsg='获取订单数据异常')
         # 获取订单的id
         ordered_house_ids = [order.house_id for order in ordered_orders]
+        print(ordered_house_ids)
 
         # 再查询房屋模型类, 把上面查到的房屋排除掉就好了
         try:

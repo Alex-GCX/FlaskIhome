@@ -106,8 +106,8 @@ def check_signature(params):
     """验证签名"""
     # 取出签名
     sign = params.pop('sign')
-    # 取出签名类型, 不需要, 不然验证不通过
-    # params.pop('sign_type')
+    # 取出签名类型
+    params.pop('sign_type')
     # 取出字典的value, 并对字典按key的字母升序排序, 得到新的列表
     params = sorted(params.items(), key=lambda x: x[0], reverse=False)
     # 将列表转换为二进制字符串
