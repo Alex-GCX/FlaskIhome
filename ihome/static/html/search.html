@@ -56,6 +56,9 @@
         <div class="display-mask"></div>
         <ul class="house-list">
             <script type="text/html" id="search-houses">
+                {{ if houses.length == 0 }}
+                <span>暂时没有符合条件的房源信息</span>
+                {{ else }}
                 {{ each houses as house }}
                 <li class="house-item">
                     <a href="/detail.html?id={{ house.house_id }}"><img src="{{ house.img_url }}"></a>
@@ -69,6 +72,7 @@
                     </div>
                 </li>
                 {{ /each }}
+                {{ /if }}
             </script>
         </ul>
         <div class="footer">

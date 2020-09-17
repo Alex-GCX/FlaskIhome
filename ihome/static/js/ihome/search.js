@@ -59,23 +59,19 @@ function send_ajax(action){
         //进入回调函数, 则把查询状态改为false
         house_data_querying = false;
         if (resp.errno == '0'){
-            if (resp.data.total_page == 0){
-                $('.house-list').html('暂时没有符合条件的房源信息')
-            }else {
-                //查询成功
-                total_page = resp.data.total_page;
-                //使用模板设置查询结果
-                if (action == 'append'){
-                    //拼接展示这一页的信息
-                    curr_page = page
-                    $('.house-list').append(template('search-houses', {houses: resp.data.house_info}));
-                }else{
-                    //重置当前页为1
-                    curr_page = 1
-                    next_page = 1
-                    //重新查询覆盖
-                    $('.house-list').html(template('search-houses', {houses: resp.data.house_info}));
-                }
+            //查询成功
+            total_page = resp.data.total_page;
+            //使用模板设置查询结果
+            if (action == 'append'){
+                //拼接展示这一页的信息
+                curr_page = page
+                $('.house-list').append(template('search-houses', {houses: resp.data.house_info}));
+            }else{
+                //重置当前页为1
+                curr_page = 1
+                next_page = 1
+                //重新查询覆盖
+                $('.house-list').html(template('search-houses', {houses: resp.data.house_info}));
             }
         }else{
             //查询失败

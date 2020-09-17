@@ -336,11 +336,11 @@ def get_search_houses():
 
         # 先从订单模型类中查出在查询时间段内已经租出去的房屋
         # 使用列表把查询条件动态汇总起来
-        filter_param = [Orders.status == 'ACCEPTED']
+        filter_param = [Orders.status.in_(['WAIT_ACCEPT', 'WAIT_PAYMENT'])]
         if start_date and end_date:
             # 若条件起止日期都存在, 那么找订单的起止日期包含在条件的起止日期内的订单
-            filter_param.append(start_date <= Orders.start_date)
-            filter_param.append(Orders.end_date <= end_date)
+            filter_param.append(start_date <= Orders.end_date)
+            filter_param.append(Orders.start_date <= end_date)
         elif start_date:
             # 若条件的开始日期存在, 结束日期为空, 那么只需要找订单的结束日期不小于条件的开始日期的订单
             filter_param.append(Orders.end_date >= start_date)
