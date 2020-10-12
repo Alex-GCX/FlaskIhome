@@ -22,11 +22,11 @@ APPID = '8aaf07087249953401727fa88f011ca4'
 # 七牛云图片存储设置
 QN_ACCESS_KEY = 'kF97AuR8DoXn6XAlKQxYu7r5vdq9a1OYP37YRJ5Z'
 QN_SECRET_KEY = 'sSSxlD9fpUxyRH8TBK21G_Ic67ydoBe-OYgjcjyM'
-QN_BUCKET_NAME = 'alex-ihome'
-QN_HOST = 'http://qfan653gi.hd-bkt.clouddn.com/'
+QN_BUCKET_NAME = 'alex-flaskihome'
+QN_HOST = 'http://qgtzrzbj5.hd-bkt.clouddn.com/'
 
 # 城区缓存信息, 七天， 单位秒
-AREA_REDIS_EXPIRES = 7 * 24 * 3600
+AREA_REDIS_EXPIRES = 7 * 24 * 360
 
 # 评论展示条数
 COMMENT_DISPLAY_COUNTS = 10
